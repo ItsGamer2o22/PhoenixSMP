@@ -1,0 +1,42 @@
+name: PhoenixSMP KeepAlive Bot
+
+on:
+  schedule:
+    # Backup trigger every 14 hours
+    - cron: "0 */14 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: phoenixsmp-keepalive
+  cancel-in-progress: false  # Do not cancel, wait for the current run to end
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 720  # 12 hours max per run
+    steps:
+      - name: 📂 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: ▶️ Start Bot
+        env:
+          MC_SERVERS: ${{ secrets.MC_SERVERS || 'play.phoenixsmp.qzz.io:20722' }}
+          MC_USERNAME: ${{ secrets.MC_USERNAME || 'PhoenixBotSMP' }}
+        run: |
+          echo "🚀 Starting KeepAlive bot..."
+          node bot.js || echo "⚠️ Bot crashed, ending run."
+
+      - name: 🔄 Re-trigger workflow
+        if: always()
+        uses: peter-evans/workflow-dispatch@v2
+        with:
+          workflow: "PhoenixSMP KeepAlive Bot"

@@ -1,0 +1,12 @@
+{
+  "name": "phoenixsmp-bot",
+  "version": "1.0.0",
+  "description": "24/7 KeepAlive Bot for PhoenixSMP",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.15.0"
+  }
+}

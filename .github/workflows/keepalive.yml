@@ -3,34 +3,30 @@ name: PhoenixSMP KeepAlive Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */14 * * *" # Run every 14 hours
-
-concurrency:
-  group: keepalive-bot
-  cancel-in-progress: false # Don't cancel the running job, wait for it to finish
+    - cron: "0 */6 * * *" # runs every 6 hours to keep bot alive
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
-    timeout-minutes: 720 # 12 hours max runtime
-
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
+      - name: ⚡ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🚀 Start KeepAlive Bot
-        run: npm start
+      - name: 🚀 Start PhoenixSMP Bot
         env:
           MC_SERVERS: ${{ secrets.MC_SERVERS }}
           MC_USERNAME: PhoenixBotSMP
+        run: |
+          echo "Starting bot..."
+          node Bot.js & sleep 300
 
       - name: 🔄 Re-trigger workflow
         if: always()

@@ -1,9 +1,13 @@
 name: PhoenixSMP KeepAlive Bot
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # manual trigger
   schedule:
-    - cron: "0 */6 * * *" # runs every 6 hours to keep bot alive
+    - cron: "0 */6 * * *" # restart every 6 hours
+
+concurrency:
+  group: keepalive-bot
+  cancel-in-progress: true
 
 jobs:
   keepalive:
@@ -20,16 +24,13 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🚀 Start PhoenixSMP Bot
+      - name: 🚀 Start PhoenixSMP Bot (24/7)
         env:
           MC_SERVERS: ${{ secrets.MC_SERVERS }}
           MC_USERNAME: PhoenixBotSMP
         run: |
-          echo "Starting bot..."
-          node Bot.js & sleep 300
-
-      - name: 🔄 Re-trigger workflow
-        if: always()
-        uses: peter-evans/workflow-dispatch@v1
-        with:
-          workflow: "PhoenixSMP KeepAlive Bot"
+          echo "Starting bot in keepalive mode..."
+          while true; do
+            node Bot.js || echo "Bot crashed, restarting in 10s..."
+            sleep 10
+          done

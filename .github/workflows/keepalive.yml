@@ -1,28 +1,46 @@
-name: Keep Bot Alive
+name: PhoenixSMP KeepAlive Bot
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 */14 * * *" # every 14h run automatically
+  workflow_dispatch:   # Manual trigger
+  push:                # Auto run on push to main
+    branches:
+      - main
 
 jobs:
-  run-bot:
+  keepalive:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm install
 
-      - name: Start bot
-        run: npm start
+      - name: 🚀 Start Bot (24/7 loop with logging to file)
+        run: |
+          LOGFILE=bot.log
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 🔄 PhoenixSMP Bot loop started..." | tee -a $LOGFILE
+          while true; do
+            npm start 2>&1 | tee -a $LOGFILE
+            EXIT_CODE=${PIPESTATUS[0]}
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] ⚠️ Bot exited with code $EXIT_CODE — restarting in 10s..." | tee -a $LOGFILE
+            sleep 10
+          done
         env:
-          MC_SERVERS: ${{ secrets.MC_SERVERS }}
-          MC_USERNAME: ${{ secrets.MC_USERNAME }}
-          MC_AUTH: offline
+          IP: ${{ secrets.IP }}
+          PORT: ${{ secrets.PORT }}
+          VERSION: ${{ secrets.VERSION }}
+          BOT_NAME: ${{ secrets.BOT_NAME }}
+
+      - name: 📤 Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-logs
+          path: bot.log

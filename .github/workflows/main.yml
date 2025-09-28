@@ -1,0 +1,94 @@
+# Features
+# - Runs 24/7
+# - Auto-restarts if bot crashes
+# - Auto-updates from GitHub before each restart
+# - Rotates logs (keep last 7 days)
+# - Persistent 14-hour cooldown
+# - Scheduled every 6 hours
+
+name: PhoenixSMP Bot 24/7
+
+on:
+  workflow_dispatch:    # Manual trigger
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+concurrency:
+  group: phoenixsmp-bot
+  cancel-in-progress: false  # Wait if previous run is still active
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22"
+
+      - name: Check 14-hour cooldown
+        id: cooldown
+        run: |
+          LAST_RUN_FILE=".github/phoenixbot_last_run.txt"
+          NOW=$(date +%s)
+
+          if [ -f "$LAST_RUN_FILE" ]; then
+            LAST_RUN=$(cat "$LAST_RUN_FILE")
+            ELAPSED=$((NOW - LAST_RUN))
+            if [ "$ELAPSED" -lt 50400 ]; then
+              echo "Less than 14 hours since last run. Exiting."
+              exit 0
+            fi
+          fi
+
+          echo "14h passed or first run. Continuing..."
+          echo $NOW > "$LAST_RUN_FILE"
+
+          # Commit the timestamp to persist cooldown across runners
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$LAST_RUN_FILE"
+          git commit -m "Update PhoenixBot last run timestamp" || echo "No changes to commit"
+          git push origin HEAD:main
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start Bot 24/7 with auto-update and log rotation
+        run: |
+          mkdir -p logs
+          echo "Starting PhoenixBotSMP 24/7..."
+
+          # Rotate old logs: keep last 7 days
+          LOG_DIR="logs"
+          find $LOG_DIR -maxdepth 1 -type f -name "*.log.*" -mtime +6 -exec rm -f {} \;
+
+          while true; do
+            # Rotate current log
+            if [ -f "$LOG_DIR/bot.log" ]; then
+              TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+              mv "$LOG_DIR/bot.log" "$LOG_DIR/bot.log.$TIMESTAMP"
+            fi
+
+            echo "Pulling latest code..."
+            git reset --hard
+            git pull origin main
+            npm install
+
+            echo "Running bot..."
+            node bot.js >> "$LOG_DIR/bot.log" 2>&1
+
+            echo "Bot crashed or exited. Restarting in 10s..."
+            sleep 10
+          done
+        env:
+          MC_SERVERS: ${{ secrets.MC_SERVERS }}
+          MC_USERNAME: ${{ secrets.MC_USERNAME }}
+          MC_AUTH: ${{ secrets.MC_AUTH || 'offline' }}
+          

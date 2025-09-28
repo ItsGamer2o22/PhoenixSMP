@@ -1,32 +1,36 @@
-name: PhoenixSMP Bot 24/7
+name: Keep PhoenixBotSMP Alive
 
 on:
-  workflow_dispatch:    # Manual trigger
   schedule:
-    - cron: "*/5 * * * *"  # Every 5 minutes
+    - cron: "*/10 * * * *" # every 10 minutes to make sure workflow runs
+  workflow_dispatch: {} # manual trigger
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
+    env:
+      MC_SERVERS: ${{ secrets.MC_SERVERS || 'play.phoenixsmp.qzz.io:20722' }}
+      MC_USERNAME: ${{ secrets.MC_USERNAME || 'PhoenixBotSMP' }}
+      MC_AUTH: ${{ secrets.MC_AUTH || 'offline' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: 22
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Start Bot with logging
         run: |
-          mkdir -p logs
-          echo "Starting PhoenixBotSMP..."
-          node bot.js >> logs/bot.log 2>&1
-        env:
-          MC_SERVERS: ${{ secrets.MC_SERVERS }}
-          MC_USERNAME: ${{ secrets.MC_USERNAME }}
-          MC_AUTH: ${{ secrets.MC_AUTH || 'offline' }}
+          npm install
+
+      - name: Make logs folder
+        run: mkdir -p logs
+
+      - name: Run Bot
+        run: |
+          node bot.js
+        # Keep the bot running in the background
+        # Comment out the below if you want GitHub Actions to restart on crash automatically
+        # continue-on-error: true

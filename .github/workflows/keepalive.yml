@@ -21,8 +21,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: 📦 Install dependencies
-        run: npm install
+      - name: 📦 Create package.json and install mineflayer
+        run: |
+          if [ ! -f package.json ]; then
+            echo '{"name":"phoenixsmp-bot","version":"1.0.0","main":"Bot.js"}' > package.json
+          fi
+          npm install mineflayer
 
       - name: 🚀 Start PhoenixSMP Bot (24/7)
         env:

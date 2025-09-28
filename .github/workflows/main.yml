@@ -1,15 +1,17 @@
-name: Keep PhoenixSMP Bot Alive
+name: PhoenixSMP Bot 24/7
 
 on:
-  schedule:
-    - cron: '*/15 * * * *' # every 15 minutes
   workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *' # every 10 minutes
 
 jobs:
-  keepalive:
+  run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup Node.js
@@ -20,9 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Setup environment
+        run: |
+          echo "MC_SERVERS=play.phoenixsmp.qzz.io:20722" >> .env
+          echo "MC_USERNAME=PhoenixBotSMP" >> .env
+          echo "MC_AUTH=offline" >> .env
+
       - name: Run bot
-        run: npm start
-        env:
-          MC_SERVERS: ${{ secrets.MC_SERVERS }}
-          MC_USERNAME: ${{ secrets.MC_USERNAME }}
-          MC_AUTH: ${{ secrets.MC_AUTH }}
+        run: node bot.js

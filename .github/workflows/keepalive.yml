@@ -1,32 +1,30 @@
 name: PhoenixSMP KeepAlive Bot
 
 on:
-  workflow_dispatch: # manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *" # restart every 6 hours
-
-concurrency:
-  group: keepalive-bot
-  cancel-in-progress: true
+    - cron: "0 */14 * * *" # Run every 14h to keep it alive
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+      - name: 📂 Checkout repo
+        uses: actions/checkout@v3
 
       - name: ⚡ Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      - name: 📦 Create package.json and install mineflayer
+      - name: 📦 Install dependencies
         run: |
-          if [ ! -f package.json ]; then
-            echo '{"name":"phoenixsmp-bot","version":"1.0.0","main":"Bot.js"}' > package.json
+          if [ -f package.json ]; then
+            npm install
+          else
+            echo "⚠️ No package.json found, skipping npm install"
           fi
-          npm install mineflayer
 
       - name: 🚀 Start PhoenixSMP Bot (24/7)
         env:
@@ -34,7 +32,12 @@ jobs:
           MC_USERNAME: PhoenixBotSMP
         run: |
           echo "Starting bot in keepalive mode..."
+          FILE=$(ls | grep -i '^bot\.js$' | head -n 1 || true)
+          if [ -z "$FILE" ]; then
+            echo "❌ No bot.js or Bot.js found in repo root!"
+            exit 1
+          fi
           while true; do
-            node Bot.js || echo "Bot crashed, restarting in 10s..."
+            node "$FILE" || echo "⚠️ Bot crashed, restarting in 10s..."
             sleep 10
           done

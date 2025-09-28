@@ -3,35 +3,39 @@
 # - Auto-restarts if bot crashes
 # - Auto-updates from GitHub before each restart
 # - Rotates logs (keep last 7 days)
-# - Persistent 14-hour cooldown
+# - Persistent 14-hour cooldown using PAT
 # - Scheduled every 6 hours
 
 name: PhoenixSMP Bot 24/7
 
 on:
-  workflow_dispatch:    # Manual trigger
+  workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'  # Every 6 hours
 
 concurrency:
   group: phoenixsmp-bot
-  cancel-in-progress: false  # Wait if previous run is still active
+  cancel-in-progress: false
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout repository using PAT to allow pushing commits
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
+          token: ${{ secrets.PAT_TOKEN }}
           persist-credentials: true
 
+      # Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "22"
 
+      # Check 14-hour cooldown
       - name: Check 14-hour cooldown
         id: cooldown
         run: |
@@ -41,7 +45,7 @@ jobs:
           if [ -f "$LAST_RUN_FILE" ]; then
             LAST_RUN=$(cat "$LAST_RUN_FILE")
             ELAPSED=$((NOW - LAST_RUN))
-            if [ "$ELAPSED" -lt 50400 ]; then
+            if [ "$ELAPSED" -lt 50400 ]; then   # 14 hours = 50400 seconds
               echo "Less than 14 hours since last run. Exiting."
               exit 0
             fi
@@ -50,22 +54,24 @@ jobs:
           echo "14h passed or first run. Continuing..."
           echo $NOW > "$LAST_RUN_FILE"
 
-          # Commit the timestamp to persist cooldown across runners
+          # Commit and push the last run timestamp using PAT
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$LAST_RUN_FILE"
           git commit -m "Update PhoenixBot last run timestamp" || echo "No changes to commit"
           git push origin HEAD:main
 
+      # Install dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Start Bot 24/7 with auto-update and log rotation
+      # Start bot 24/7 with auto-update and log rotation
+      - name: Start Bot 24/7
         run: |
           mkdir -p logs
           echo "Starting PhoenixBotSMP 24/7..."
 
-          # Rotate old logs: keep last 7 days
+          # Rotate old logs (keep last 7 days)
           LOG_DIR="logs"
           find $LOG_DIR -maxdepth 1 -type f -name "*.log.*" -mtime +6 -exec rm -f {} \;
 

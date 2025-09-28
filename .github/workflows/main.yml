@@ -1,0 +1,98 @@
+# Features
+# - The last workflow not done yet new workflow not start
+# - 14h create a new run
+# - 24/7 automatic restart if bot crashes
+# - Auto-update bot before each restart
+# - Log rotation (keep last 7 days)
+
+name: PhoenixSMP Bot 24/7
+
+on:
+  workflow_dispatch:    # Manual trigger
+  schedule:
+    - cron: "*/5 * * * *"  # Every 5 minutes
+
+concurrency:
+  group: phoenixsmp-bot
+  cancel-in-progress: false  # Wait if previous run is still active
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22"
+
+      - name: Download last run timestamp
+        uses: actions/download-artifact@v4
+        with:
+          name: last-run
+          path: last-run
+        continue-on-error: true
+
+      - name: Check 14-hour cooldown
+        id: cooldown
+        run: |
+          NOW=$(date +%s)
+          LAST_RUN_FILE="last-run/last_run.txt"
+          if [ -f "$LAST_RUN_FILE" ]; then
+            LAST_RUN=$(cat $LAST_RUN_FILE)
+            ELAPSED=$((NOW - LAST_RUN))
+            if [ "$ELAPSED" -lt 50400 ]; then   # 14 hours = 50400 seconds
+              echo "Less than 14h since last run. Exiting."
+              exit 0
+            fi
+          fi
+          echo "14h passed or first run. Continuing..."
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start Bot 24/7 with auto-update and log rotation
+        run: |
+          mkdir -p logs
+          echo "Starting PhoenixBotSMP 24/7 with auto-update and log rotation..."
+
+          # Rotate old logs: keep last 7 days
+          LOG_DIR="logs"
+          find $LOG_DIR -maxdepth 1 -type f -name "*.log.*" -mtime +6 -exec rm -f {} \;
+
+          while true; do
+            # Rotate current log
+            if [ -f "$LOG_DIR/bot.log" ]; then
+              TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+              mv "$LOG_DIR/bot.log" "$LOG_DIR/bot.log.$TIMESTAMP"
+            fi
+
+            echo "Pulling latest code..."
+            git reset --hard
+            git pull origin main
+            npm install
+
+            echo "Running bot..."
+            node bot.js >> "$LOG_DIR/bot.log" 2>&1
+
+            echo "Bot crashed or exited. Restarting in 10s..."
+            sleep 10
+          done
+        env:
+          MC_SERVERS: ${{ secrets.MC_SERVERS }}
+          MC_USERNAME: ${{ secrets.MC_USERNAME }}
+          MC_AUTH: ${{ secrets.MC_AUTH || 'offline' }}
+
+      - name: Save last run timestamp
+        run: |
+          mkdir -p last-run
+          date +%s > last-run/last_run.txt
+
+      - name: Upload last run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: last-run
+          path: last-run

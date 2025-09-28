@@ -59,7 +59,7 @@ jobs:
           mkdir -p logs
           echo "Starting PhoenixBotSMP 24/7 with auto-update and log rotation..."
 
-          # Rotate logs: keep last 7 days
+          # Rotate old logs: keep last 7 days
           LOG_DIR="logs"
           find $LOG_DIR -maxdepth 1 -type f -name "*.log.*" -mtime +6 -exec rm -f {} \;
 
@@ -90,6 +90,8 @@ jobs:
         run: |
           mkdir -p last-run
           date +%s > last-run/last_run.txt
+
+      - name: Upload last run artifact
         uses: actions/upload-artifact@v3
         with:
           name: last-run

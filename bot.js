@@ -1,5 +1,3 @@
-
-Save New Duplicate & Edit Just Text Twitter
 const mineflayer = require("mineflayer");
 require("dotenv").config();
 
